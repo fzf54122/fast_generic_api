@@ -4,8 +4,8 @@
 # @FileName: mixins.py
 # @Software: PyCharm
 from fastapi import Body
-from fast_auto_framework.core import status
-from fast_auto_framework.response import Response
+from fast_generic_api.core import status
+from fast_generic_api.core.response import Response
 
 
 class CreateModelMixin:

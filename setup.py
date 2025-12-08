@@ -16,6 +16,8 @@ setup(
     install_requires=[
         "fastapi",
         "tortoise-orm",
+        "uvicorn",
+        "watchfiles",
     ],
     author="fzf",
     description="A generic APIView base class for FastAPI with Tortoise ORM",

@@ -5,12 +5,12 @@
 # @Software: PyCharm
 from typing import Optional, Type, List
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 from tortoise.queryset import QuerySet
 from tortoise.models import Model
 
-from fast_auto_framework import mixins
-from fast_auto_framework.core.exceptions import HTTPException, HTTPPermissionException
+from fast_generic_api import mixins
+from fast_generic_api.core.exceptions import HTTPException, HTTPPermissionException
 
 
 async def get_object_or_404(queryset, **filter_kwargs):
@@ -46,11 +46,12 @@ class GenericAPIView:
 
         instance = cls()
 
+        # 映射方法到 HTTP 方法
         method_map = {
             "destroy_many": "DELETE",
-            "list": "GET",
+            "get": "GET",
             "retrieve": "GET",
-            "create": "POST",
+            "post": "POST",
             "update": "PUT",
             "partial_update": "PATCH",
             "destroy": "DELETE",
@@ -61,6 +62,14 @@ class GenericAPIView:
                 continue
 
             endpoint = getattr(instance, method_name)
+
+            # 读取装饰器注入的元信息
+            summary = getattr(endpoint, "_summary", None)
+            description = getattr(endpoint, "_description", None)
+            tags = getattr(endpoint, "_tags", None)
+            responses = getattr(endpoint, "_responses", None)
+
+            # 构造路径
             path = cls.prefix
             if method_name in ["list", "create"]:
                 path += f"/{method_name}/"
@@ -70,15 +79,20 @@ class GenericAPIView:
                 param_name = cls.loop_uuid_field or "pk"
                 path += f"/{{{param_name}}}/"
 
+            # 注册路由（补充元参数）
             cls.router.add_api_route(
                 path,
                 endpoint,
                 methods=[http_method],
-                dependencies=[Depends(dep) for dep in cls.permissions],
                 name=method_name,
+                summary=summary,
+                description=description,
+                tags=tags,
+                responses=responses,
+                dependencies=cls.permissions,
             )
 
-    def __init__(self, request, **kwargs):
+    def __init__(self, request=None, **kwargs):
         self.request = request
         self.kwargs = kwargs
         self.format_kwarg = None
