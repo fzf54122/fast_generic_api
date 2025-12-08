@@ -49,9 +49,9 @@ class GenericAPIView:
         # 映射方法到 HTTP 方法
         method_map = {
             "destroy_many": "DELETE",
-            "get": "GET",
+            "list": "GET",
             "retrieve": "GET",
-            "post": "POST",
+            "create": "POST",
             "update": "PUT",
             "partial_update": "PATCH",
             "destroy": "DELETE",
