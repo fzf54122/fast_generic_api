@@ -3,7 +3,9 @@
 # @Author  : fzf
 # @FileName: mixins.py
 # @Software: PyCharm
-from fastapi import Body
+from typing import Any
+
+from fastapi import Request, Body
 from fast_generic_api.core import status
 from fast_generic_api.core.response import Response
 
@@ -11,8 +13,14 @@ from fast_generic_api.core.response import Response
 class CreateModelMixin:
     action = "create"
 
-    async def create(self, request, data=Body(...), *args, **kwargs):
-        obj = await self.model.create(**self.handle_data(data))
+    async def create(self, data=Body(...)):
+        """
+        通用创建方法
+        - request: FastAPI Request 对象
+        - data: Pydantic model，自动解析请求体 JSON
+        """
+        data_dict = self.serialize_input_data(data)
+        obj = await self.queryset.create(**data_dict)
         serializer = self.get_serializer(obj)
         return Response(serializer)
 
@@ -20,12 +28,12 @@ class CreateModelMixin:
 class ListModelMixin:
     action = "list"
 
-    async def list(self, request, *args, **kwargs):
+    async def list(self, request: Request):
         """
         获取对象列表
         - 支持分页
         """
-        qs = self.get_queryset(request)
+        qs = self.get_queryset()
         # 应用 ordering
         if self.ordering:
             qs = qs.order_by(*self.ordering)
@@ -34,42 +42,47 @@ class ListModelMixin:
             qs = self.filter_class(request, qs)
         # 使用分页器
         if self.pagination_class:
-            return Response(await self.pagination_class.paginate(request, qs, self.get_serializer))
+            return Response(await self.pagination_class.get_paginated_response(request, qs, self.get_serializer))
         # 不分页的情况（备用）
-        serializer = self.get_serializer(qs, many=True)
+        serializer = self.get_serializer(await qs, many=True)
         return Response(serializer)
 
 
 class RetrieveModelMixin:
     action = "retrieve"
 
-    async def retrieve(self, request, *args, **kwargs):
-        instance = self.get_object()
+    async def retrieve(self, request: Request, pk: int):
+        lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
+        self.kwargs[lookup_url_kwarg] = pk
+        instance = await self.get_object()  # ✅ 注意加 await
         serializer = self.get_serializer(instance)
-        return Response(serializer.data)
+        return Response(serializer)
 
 
 class UpdateModelMixin:
     action = "update"
 
-    async def update(self, request, data=Body(...), *args, **kwargs):
+    async def update(self, pk: int, data=Body(...)):
+        lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
+        self.kwargs[lookup_url_kwarg] = pk
         obj = await self.get_object()
-        await obj.update_from_dict(self.handle_data(data)).save()
+        await obj.update_from_dict(self.serialize_input_data(data)).save()
         serializer = self.get_serializer(obj)
         return Response(serializer)
-
 
 
 class PartialUpdateModelMixin:
     action = "partial_update"
 
-    async def partial_update(self, request, data=Body(...)):
+    async def partial_update(self, pk: int, data=Body(...)):
         """
         部分更新对象
         - 支持部分字段更新
         """
+        lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
+        self.kwargs[lookup_url_kwarg] = pk
         obj = await self.get_object()
-        await obj.update_from_dict(self.handle_data(data)).save()
+        await obj.update_from_dict(self.serialize_input_data(data)).save()
         serializer = self.get_serializer(obj)
         return Response(serializer)
 
@@ -77,8 +90,10 @@ class PartialUpdateModelMixin:
 class DestroyModelMixin:
     action = "destroy"
 
-    async def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
+    async def destroy(self, pk: int):
+        lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
+        self.kwargs[lookup_url_kwarg] = pk
+        instance = await self.get_object()
         await self.perform_destroy(instance)
         return Response(status_code=status.HTTP_204_NO_CONTENT)
 

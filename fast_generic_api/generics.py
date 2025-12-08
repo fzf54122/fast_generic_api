@@ -6,8 +6,7 @@
 from typing import Optional, Type, List
 
 from fastapi import APIRouter
-from tortoise.queryset import QuerySet
-from tortoise.models import Model
+from tortoise.models import Model, ModelMeta
 
 from fast_generic_api import mixins
 from fast_generic_api.core.exceptions import HTTPException, HTTPPermissionException
@@ -30,7 +29,10 @@ class GenericAPIView:
     action: Optional[str] = None
 
     pagination_class = None
-    filter_backends: List[Type] = []
+
+    filter_fields: List[Type] = []
+    filter_class = None
+
     serializer_class = None
     serializer_create_class = None
     serializer_update_class = None
@@ -105,7 +107,8 @@ class GenericAPIView:
             f"'{self.__class__.__name__}' 必须提供 queryset 或重写 get_queryset()"
         )
         queryset = self.queryset
-        if isinstance(queryset, QuerySet):
+
+        if isinstance(queryset, ModelMeta):
             queryset = queryset.all()
         return queryset
 
@@ -125,16 +128,15 @@ class GenericAPIView:
     # ================================
     # serializer
     # ================================
-    def get_serializer(self, *args, **kwargs):
+    def get_serializer(self, instance, many: bool = False):
         serializer_class = self.get_serializer_class()
-        kwargs.setdefault("context", self.get_serializer_context())
-        return serializer_class(*args, **kwargs)
+        if many:
+            return [serializer_class.model_validate(obj) for obj in instance]
+        return serializer_class.model_validate(instance)
 
     def get_serializer_class(self):
-        assert self.serializer_class is not None, (
-            f"'{self.__class__.__name__}' 必须提供 serializer_class"
-        )
-        return self.serializer_class
+        """根据 action 返回对应 Pydantic 类"""
+        return getattr(self, "serializer_class")
 
     def get_serializer_context(self):
         return {
@@ -147,8 +149,10 @@ class GenericAPIView:
     # queryset 过滤
     # ================================
     def filter_queryset(self, queryset):
-        for backend in self.filter_backends:
-            queryset = backend().filter_queryset(self.request, queryset, self)
+        # 这里可以自定义过滤逻辑，或者使用类似 `filter_fields` 的方法
+        # if self.filter_fields:
+        #     for field in self.filter_fields:
+        #         queryset = queryset.filter(**{field: self.kwargs.get(field)})
         return queryset
 
     # ================================
@@ -180,6 +184,15 @@ class GenericAPIView:
             if not await perm(self.request, obj):
                 raise HTTPPermissionException
 
+    def serialize_input_data(self, input_data) -> dict:
+        """
+        将输入数据（Pydantic 模型或 dict）转换为 dict
+        """
+        if not isinstance(input_data, dict):
+            processed_data = input_data.model_dump(exclude_unset=True)
+        else:
+            processed_data = input_data
+        return processed_data
 
 class CreateViewSet(mixins.CreateModelMixin,
                     GenericAPIView):
