@@ -149,10 +149,6 @@ class GenericAPIView:
     # queryset 过滤
     # ================================
     def filter_queryset(self, queryset):
-        # 这里可以自定义过滤逻辑，或者使用类似 `filter_fields` 的方法
-        # if self.filter_fields:
-        #     for field in self.filter_fields:
-        #         queryset = queryset.filter(**{field: self.kwargs.get(field)})
         return queryset
 
     # ================================
@@ -234,8 +230,7 @@ class DestroyAPIView(mixins.DestroyModelMixin,
         return self.destroy(request, *args, **kwargs)
 
 
-class UpdateViewSet(mixins.UpdateModelMixin,
-                    mixins.PartialUpdateModelMixin,
+class UpdateViewSet(mixins.PartialUpdateModelMixin,
                     GenericAPIView):
     """
     Concrete view for updating a model instance.
@@ -263,7 +258,6 @@ class ListCreateViewSet(mixins.ListModelMixin,
 
 
 class RetrieveUpdateViewSet(mixins.RetrieveModelMixin,
-                            mixins.UpdateModelMixin,
                             mixins.PartialUpdateModelMixin,
                             GenericAPIView):
     """
@@ -295,7 +289,6 @@ class RetrieveDestroyViewSet(mixins.RetrieveModelMixin,
 
 
 class RetrieveUpdateDestroyViewSet(mixins.RetrieveModelMixin,
-                                   mixins.UpdateModelMixin,
                                    mixins.DestroyModelMixin,
                                    mixins.PartialUpdateModelMixin,
                                    GenericAPIView):
@@ -320,7 +313,6 @@ class CustomViewSet(
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
     mixins.CreateModelMixin,
-    mixins.UpdateModelMixin,
     mixins.PartialUpdateModelMixin,
     mixins.DestroyModelMixin,
 ):

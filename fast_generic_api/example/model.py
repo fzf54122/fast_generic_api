@@ -11,6 +11,7 @@ class Item(models.Model):
     name = fields.CharField(max_length=100)
     description = fields.TextField(null=True)
     created_at = fields.DatetimeField(auto_now_add=True)
+    is_deleted = fields.BooleanField(default=False)
 
     class Meta:
         table = "items"

@@ -21,7 +21,7 @@ class ItemViewSet(CustomViewSet, GenericAPIView):
     router = router
     prefix = "/items"
     queryset = Item
-    filter_fields = []
+    filter_fields = ["name"]
     ordering = ["created_at"]
     lookup_field = "id"
 

@@ -13,6 +13,7 @@ class ItemSerializer(AutoSchemas):
     id: int
     name: str
     description: Optional[str] = None
+    is_deleted: bool
 
 
 class ItemCreateSerializer(AutoSchemas):
