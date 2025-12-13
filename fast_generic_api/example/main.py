@@ -9,8 +9,8 @@ from fast_generic_api.generics import GenericAPIView, CustomViewSet
 from fast_generic_api.core.pagination import LimitOffsetPagination
 from tortoise.contrib.fastapi import register_tortoise
 
-from model import Item
-from serializers import ItemSerializer, ItemCreateSerializer, ItemUpdateSerializer
+from fast_generic_api.example.model import Item
+from fast_generic_api.example.serializers import ItemSerializer, ItemCreateSerializer, ItemUpdateSerializer
 
 import uvicorn
 
@@ -26,8 +26,6 @@ class ItemViewSet(CustomViewSet, GenericAPIView):
     lookup_field = "id"
 
     serializer_class = ItemSerializer
-    serializer_create_class = ItemCreateSerializer
-    serializer_update_class = ItemUpdateSerializer
     pagination_class = LimitOffsetPagination
 
 app = FastAPI(
@@ -43,7 +41,7 @@ app.include_router(router)
 register_tortoise(
     app,
     db_url="sqlite://db.sqlite3",
-    modules={"models": ["model"]},
+    modules={"models": ["fast_generic_api.example.model"]},
     generate_schemas=True,
     add_exception_handlers=True,
 )

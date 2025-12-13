@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # @Time    : 2025/12/8 下午6:30
 # @Author  : fzf
-# @FileName: schemas.py
+# @FileName: serializers.py
 # @Software: PyCharm
 from typing import Any
 from fastapi.encoders import jsonable_encoder
@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from tortoise.fields.relational import ManyToManyRelation
 
 
-class AutoSchemas(BaseModel):
+class CoreSerializers(BaseModel):
     """基础 BaseModel，提供 `.data` 属性返回 JSON 可序列化内容"""
 
     model_config = {"from_attributes": True}

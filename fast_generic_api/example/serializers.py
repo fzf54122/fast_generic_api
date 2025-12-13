@@ -6,21 +6,21 @@
 # serializers.py
 from pydantic import BaseModel
 from typing import Optional
-from fast_generic_api.core.schemas import AutoSchemas
+from fast_generic_api.core.serializers import CoreSerializer
 
 
-class ItemSerializer(AutoSchemas):
+class ItemSerializer(CoreSerializer):
     id: int
     name: str
     description: Optional[str] = None
     is_deleted: bool
 
 
-class ItemCreateSerializer(AutoSchemas):
+class ItemCreateSerializer(CoreSerializer):
     name: str
     description: Optional[str] = None
 
 
-class ItemUpdateSerializer(AutoSchemas):
+class ItemUpdateSerializer(CoreSerializer):
     name: Optional[str] = None
     description: Optional[str] = None

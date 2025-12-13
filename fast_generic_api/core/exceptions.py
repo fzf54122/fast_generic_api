@@ -4,16 +4,16 @@
 # @FileName: exceptions.py
 # @Software: PyCharm
 
-class FastAutoException(Exception):
+class CoreException(Exception):
     code = 0
     detail = '基础错误'
 
 
-class HTTPException(FastAutoException):
+class HTTPException(CoreException):
     code = 404
     detail = "Object not found"
 
 
-class HTTPPermissionException(FastAutoException):
+class HTTPPermissionException(CoreException):
     code = 403
     detail = 'Permission denied'

@@ -8,7 +8,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 
 
-class Response(JSONResponse):
+class CoreResponse(JSONResponse):
     """
     通用响应类：
     - 成功返回: Response(data=..., message=..., code=200)

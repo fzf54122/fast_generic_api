@@ -5,8 +5,9 @@
 # @Software: PyCharm
 from typing import Optional, Type, List
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from tortoise.models import Model, ModelMeta
+from tortoise.queryset import QuerySet
 
 from fast_generic_api import mixins
 from fast_generic_api.core.exceptions import HTTPException, HTTPPermissionException
@@ -37,7 +38,7 @@ class GenericAPIView:
     serializer_create_class = None
     serializer_update_class = None
 
-    lookup_field: str = "pk"
+    lookup_field: str = "uuid"
     lookup_url_kwarg: Optional[str] = None
 
     def __init_subclass__(cls, **kwargs):
@@ -90,7 +91,7 @@ class GenericAPIView:
                 summary=summary,
                 description=description,
                 tags=tags,
-                responses=responses,
+                responses=None,
                 dependencies=cls.permissions,
             )
 
@@ -122,17 +123,28 @@ class GenericAPIView:
 
         filter_kwargs = {self.lookup_field: self.kwargs[lookup_url_kwarg]}
         obj = await get_object_or_404(queryset, **filter_kwargs)
-        await self.check_object_permissions(obj)
         return obj
 
     # ================================
     # serializer
     # ================================
-    def get_serializer(self, instance, many: bool = False):
+    async def get_serializer(self, instance, many: bool = False):
         serializer_class = self.get_serializer_class()
+
+        async def serialize_obj(obj):
+            if hasattr(obj, "to_dict"):
+                data = await obj.to_dict()
+            else:
+                data = obj
+            return serializer_class(**data)
+
+        # QuerySet 先执行
+        if isinstance(instance, QuerySet):
+            instance = await instance
+
         if many:
-            return [serializer_class.model_validate(obj) for obj in instance]
-        return serializer_class.model_validate(instance)
+            return [await serialize_obj(obj) for obj in instance]
+        return await serialize_obj(instance)
 
     def get_serializer_class(self):
         """根据 action 返回对应 Pydantic 类"""
@@ -163,24 +175,24 @@ class GenericAPIView:
                 self._paginator = self.pagination_class()
         return self._paginator
 
-    def paginate_queryset(self, queryset):
-        if self.paginator is None:
-            return None
-        return self.paginator.paginate_queryset(queryset, self.request, view=self)
-
-    def get_paginated_response(self, data):
-        assert self.paginator is not None
-        return self.paginator.get_paginated_response(data)
+    # def paginate_queryset(self, queryset):
+    #     if self.paginator is None:
+    #         return None
+    #     return self.paginator.paginate_queryset(queryset, self.request, view=self)
+    #
+    # def get_paginated_response(self, data):
+    #     assert self.paginator is not None
+    #     return self.paginator.get_paginated_response(data)
 
     # ================================
     # 权限
     # ================================
-    async def check_object_permissions(self, obj):
-        for perm in self.permissions:
-            if not await perm(self.request, obj):
-                raise HTTPPermissionException
+    # async def check_object_permissions(self, obj):
+    #     for perm in self.permissions:
+    #         if not await perm(self.request, obj):
+    #             raise HTTPPermissionException
 
-    def serialize_input_data(self, input_data) -> dict:
+    def input_data(self, input_data) -> dict:
         """
         将输入数据（Pydantic 模型或 dict）转换为 dict
         """
@@ -196,18 +208,13 @@ class CreateViewSet(mixins.CreateModelMixin,
     Concrete view for creating a model instance.
     """
 
-    def post(self, request, *args, **kwargs):
-        return self.create(request, *args, **kwargs)
-
 
 class ListViewSet(mixins.ListModelMixin,
                   GenericAPIView):
     """
     Concrete view for listing a queryset.
     """
-
-    def get(self, request, *args, **kwargs):
-        return self.list(request, *args, **kwargs)
+    pass
 
 
 class RetrieveViewSet(mixins.RetrieveModelMixin,
@@ -216,9 +223,6 @@ class RetrieveViewSet(mixins.RetrieveModelMixin,
     Concrete view for retrieving a model instance.
     """
 
-    def get(self, request, *args, **kwargs):
-        return self.retrieve(request, *args, **kwargs)
-
 
 class DestroyAPIView(mixins.DestroyModelMixin,
                      GenericAPIView):
@@ -226,21 +230,11 @@ class DestroyAPIView(mixins.DestroyModelMixin,
     Concrete view for deleting a model instance.
     """
 
-    def delete(self, request, *args, **kwargs):
-        return self.destroy(request, *args, **kwargs)
-
-
 class UpdateViewSet(mixins.PartialUpdateModelMixin,
                     GenericAPIView):
     """
     Concrete view for updating a model instance.
     """
-
-    def put(self, request, *args, **kwargs):
-        return self.update(request, *args, **kwargs)
-
-    def patch(self, request, *args, **kwargs):
-        return self.partial_update(request, *args, **kwargs)
 
 
 class ListCreateViewSet(mixins.ListModelMixin,
@@ -250,12 +244,6 @@ class ListCreateViewSet(mixins.ListModelMixin,
     Concrete view for listing a queryset or creating a model instance.
     """
 
-    def get(self, request, *args, **kwargs):
-        return self.list(request, *args, **kwargs)
-
-    def post(self, request, *args, **kwargs):
-        return self.create(request, *args, **kwargs)
-
 
 class RetrieveUpdateViewSet(mixins.RetrieveModelMixin,
                             mixins.PartialUpdateModelMixin,
@@ -264,16 +252,6 @@ class RetrieveUpdateViewSet(mixins.RetrieveModelMixin,
     Concrete view for retrieving, updating a model instance.
     """
 
-    def get(self, request, *args, **kwargs):
-        return self.retrieve(request, *args, **kwargs)
-
-    def put(self, request, *args, **kwargs):
-        return self.update(request, *args, **kwargs)
-
-    def patch(self, request, *args, **kwargs):
-        return self.partial_update(request, *args, **kwargs)
-
-
 class RetrieveDestroyViewSet(mixins.RetrieveModelMixin,
                              mixins.DestroyModelMixin,
                              GenericAPIView):
@@ -281,11 +259,6 @@ class RetrieveDestroyViewSet(mixins.RetrieveModelMixin,
     Concrete view for retrieving or deleting a model instance.
     """
 
-    def get(self, request, *args, **kwargs):
-        return self.retrieve(request, *args, **kwargs)
-
-    def delete(self, request, *args, **kwargs):
-        return self.destroy(request, *args, **kwargs)
 
 
 class RetrieveUpdateDestroyViewSet(mixins.RetrieveModelMixin,
@@ -295,19 +268,6 @@ class RetrieveUpdateDestroyViewSet(mixins.RetrieveModelMixin,
     """
     Concrete view for retrieving, updating or deleting a model instance.
     """
-
-    def get(self, request, *args, **kwargs):
-        return self.retrieve(request, *args, **kwargs)
-
-    def put(self, request, *args, **kwargs):
-        return self.update(request, *args, **kwargs)
-
-    def patch(self, request, *args, **kwargs):
-        return self.partial_update(request, *args, **kwargs)
-
-    def delete(self, request, *args, **kwargs):
-        return self.destroy(request, *args, **kwargs)
-
 
 class CustomViewSet(
     mixins.ListModelMixin,

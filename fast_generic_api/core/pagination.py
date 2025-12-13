@@ -7,7 +7,7 @@ from fastapi import Request
 from watchfiles import awatch
 
 
-class LimitOffsetPagination:
+class CorePagination:
     default_limit = 10
     max_limit = 1000
 
@@ -47,7 +47,7 @@ class LimitOffsetPagination:
         total = await queryset.count()
 
         objs = await queryset.offset(offset).limit(limit)
-        data = serializer_fn(objs, many=True)
+        data = await serializer_fn(queryset, many=True)
 
         return {
             "total": total,

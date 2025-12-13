@@ -1,49 +1,55 @@
 # -*- coding: utf-8 -*-
-# @Time    : 2025/12/8 下午2:24
-# @Author  : fzf
-# @FileName: filter.py
-# @Software: PyCharm
 from tortoise.queryset import QuerySet
-from typing import Dict, Any, Callable
+from typing import Dict, Any, Callable, Optional, Union
 
 
-class FilterSet:
+class CoreFilterSet:
     """
     基础 Tortoise FilterSet
     - 支持自定义方法过滤
     - 支持精确匹配 / 多选 __in
     - 自动排除 offset、limit 等分页参数
+    初始化时直接返回过滤后的 QuerySet。
     """
 
     model = None
-    filters: Dict[str, Callable] = {}  # 自定义过滤方法
-    exclude_fields = {"offset", "limit"}  # 自动排除字段
+    filters: Dict[str, Callable[[QuerySet, str, Any], QuerySet]] = {}
+    exclude_fields = {"offset", "limit"}
 
-    def __init__(self, queryset: QuerySet, data: Dict[str, Any]):
-        if self.model is None:
+    def __new__(cls, queryset: QuerySet, data: Optional[Union[Dict[str, Any], Any]] = None):
+        """
+        __new__ 在初始化时直接返回过滤后的 QuerySet，而不是实例
+        """
+        if cls.model is None:
             raise ValueError("model must be defined")
-        self.queryset = queryset
-        self.data = data or {}
+        if not isinstance(queryset, QuerySet):
+            raise TypeError("queryset must be a Tortoise QuerySet")
+        data_dict = dict(data or {})
 
-    def _apply_filter(self, qs: QuerySet, field: str, value: Any) -> QuerySet:
+        qs = queryset
+        for field, value in data_dict.items():
+            if field in cls.exclude_fields:
+                continue
+            qs = cls._apply_filter_static(qs, field, value)
+        return qs
+
+    @staticmethod
+    def _apply_filter_static(qs: QuerySet, field: str, value: Any) -> QuerySet:
         """根据字段和值应用过滤"""
-        if field in self.filters:
-            return self.filters[field](qs, field, value)
-
         if value is None:
             return qs
 
-        # 自动处理多选字符串
+        # 自定义方法优先
+        if field in CoreFilterSet.filters and callable(CoreFilterSet.filters[field]):
+            return CoreFilterSet.filters[field](qs, field, value)
+
+        # 字符串多选
         if isinstance(value, str) and ',' in value:
             return qs.filter(**{f"{field}__in": value.split(',')})
 
-        return qs.filter(**{field: value})
+        # 列表/元组直接 __in
+        if isinstance(value, (list, tuple)):
+            return qs.filter(**{f"{field}__in": value})
 
-    def qs(self) -> QuerySet:
-        """返回过滤后的 QuerySet，自动跳过 exclude_fields"""
-        qs = self.queryset
-        for field, value in self.data.items():
-            if field in self.exclude_fields:
-                continue
-            qs = self._apply_filter(qs, field, value)
-        return qs
+        # 默认精确匹配
+        return qs.filter(**{field: value})
