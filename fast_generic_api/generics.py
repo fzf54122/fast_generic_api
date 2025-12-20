@@ -125,26 +125,20 @@ class GenericAPIView:
         obj = await get_object_or_404(queryset, **filter_kwargs)
         return obj
 
+
+
     # ================================
     # serializer
     # ================================
     async def get_serializer(self, instance, many: bool = False):
         serializer_class = self.get_serializer_class()
-
-        async def serialize_obj(obj):
-            if hasattr(obj, "to_dict"):
-                data = await obj.to_dict()
-            else:
-                data = obj
-            return serializer_class(**data)
-
         # QuerySet 先执行
         if isinstance(instance, QuerySet):
             instance = await instance
 
         if many:
-            return [await serialize_obj(obj) for obj in instance]
-        return await serialize_obj(instance)
+            return [await serializer_class.from_tortoise(obj) for obj in instance]
+        return await serializer_class.from_tortoise(instance)
 
     def get_serializer_class(self):
         """根据 action 返回对应 Pydantic 类"""

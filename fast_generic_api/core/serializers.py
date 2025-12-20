@@ -7,8 +7,6 @@ from typing import Any
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
 
-from tortoise.fields.relational import ManyToManyRelation
-
 
 class CoreSerializers(BaseModel):
     """基础 BaseModel，提供 `.data` 属性返回 JSON 可序列化内容"""
@@ -21,16 +19,14 @@ class CoreSerializers(BaseModel):
         return jsonable_encoder(self)
 
     @classmethod
-    def model_post_init(cls, obj):
-        if obj is None:
-            return  # 防止 None 报错
-        # 处理 ManyToManyRelation
-        for field_name in getattr(obj, "_meta").fields_map.keys():
-            value = getattr(obj, field_name, None)
-            from tortoise.fields.relational import ManyToManyRelation
-            if isinstance(value, ManyToManyRelation):
-                try:
-                    value_list = list(value)
-                except TypeError:
-                    value_list = []
-                setattr(obj, field_name, value_list)
+    async def from_tortoise(cls, instance):
+        data = await instance.to_dict()
+
+        # 自动处理 ManyToMany 字段
+        m2m_fields = instance._meta.m2m_fields
+
+        for field in m2m_fields:
+            related_objs = await getattr(instance, field).all()
+            data[field] = [obj.id for obj in related_objs]
+
+        return cls(**data)

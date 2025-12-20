@@ -26,7 +26,7 @@ class BaseMixin:
             k: v for k, v in data.items()
             if not isinstance(self.queryset._meta.fields_map.get(k), ManyToManyFieldInstance)}
 
-    async def handle_m2m(self, obj, data_dict: dict):
+    async def handle_m2m(self, obj, data_dict: dict, replace: bool = True, ):
         """
         专门处理 ManyToMany 关系
         obj: 已创建的对象
@@ -84,10 +84,10 @@ class RetrieveModelMixin(BaseMixin):
     action = "retrieve"
 
     async def retrieve(self, uuid: Any) -> CoreResponse:
-        """获取单个对象"""
+        """获取单个对象（自动返回 M2M）"""
         self.kwargs.update(self._get_lookup_kwargs(uuid))
         instance = await self.get_object()
-        serializer = await self.get_serializer(await instance.to_dict())
+        serializer = await self.get_serializer(instance)
         return CoreResponse(serializer)
 
 
