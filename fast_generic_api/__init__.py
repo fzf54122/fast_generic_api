@@ -11,8 +11,8 @@ r"""
 |_|  \__,_|___/\__| |_| \_\_____|____/ |_|   |_| |_|  \__,_|_| |_| |_|\___| \_/\_/ \___/|_|  |_|\_\
 """
 
-__title__ = 'Fast REST framework'
-__version__ = '0.1.0'
+__title__ = 'Fast Generic Api'
+__version__ = '0.1.6'
 __author__ = 'Tom Christie'
 __license__ = 'BSD 3-Clause'
 __copyright__ = 'Copyright 2011-2023 Encode OSS Ltd'

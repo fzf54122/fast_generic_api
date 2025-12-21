@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from tortoise.queryset import QuerySet
 from typing import Dict, Any, Callable, Optional, Union
+from tortoise.expressions import Q
 
 
 class CoreFilterSet:
@@ -15,6 +16,7 @@ class CoreFilterSet:
     model = None
     filters: Dict[str, Callable[[QuerySet, str, Any], QuerySet]] = {}
     exclude_fields = {"offset", "limit"}
+    search_fields = []
 
     def __new__(cls, queryset: QuerySet, data: Optional[Union[Dict[str, Any], Any]] = None):
         """
@@ -30,26 +32,35 @@ class CoreFilterSet:
         for field, value in data_dict.items():
             if field in cls.exclude_fields:
                 continue
-            qs = cls._apply_filter_static(qs, field, value)
+            qs = cls._apply_filter(qs, field, value)
         return qs
 
-    @staticmethod
-    def _apply_filter_static(qs: QuerySet, field: str, value: Any) -> QuerySet:
-        """根据字段和值应用过滤"""
+    @classmethod
+    def _apply_filter(cls, qs: QuerySet, field: str, value: Any):
         if value is None:
             return qs
 
-        # 自定义方法优先
-        if field in CoreFilterSet.filters and callable(CoreFilterSet.filters[field]):
-            return CoreFilterSet.filters[field](qs, field, value)
+        # ⭐ 这里一定要用 cls.filters，而不是 CoreFilterSet.filters
+        if field in cls.filters:
+            return cls.filters[field](qs, field, value)
 
-        # 字符串多选
+        # 多选
         if isinstance(value, str) and ',' in value:
             return qs.filter(**{f"{field}__in": value.split(',')})
 
-        # 列表/元组直接 __in
         if isinstance(value, (list, tuple)):
             return qs.filter(**{f"{field}__in": value})
 
-        # 默认精确匹配
         return qs.filter(**{field: value})
+
+    @classmethod
+    def filter_search(cls, qs, value):
+        if not value:
+            return qs
+
+        q_obj = Q()
+
+        for field in cls.search_fields:
+            q_obj |= Q(**{f"{field}__contains": value})
+
+        return qs.filter(q_obj)

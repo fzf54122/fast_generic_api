@@ -8,7 +8,7 @@ from watchfiles import awatch
 
 
 class CorePagination:
-    default_limit = 10
+    default_limit = 20
     max_limit = 1000
 
     @classmethod
@@ -22,11 +22,9 @@ class CorePagination:
         # 默认值
         limit = int(limit) if limit and limit.isdigit() else cls.default_limit
         offset = int(offset) if offset and offset.isdigit() else 0
-
-        # 限制最大 limit
         limit = min(limit, cls.max_limit)
-
         return limit, offset
+
 
     @classmethod
     async def get_paginated_response(cls, request: Request, queryset, serializer_fn):
@@ -41,14 +39,12 @@ class CorePagination:
                 "offset": 0,
                 "results": serializer_fn(queryset, many=True)
             }
-
         # 下面是正常 QuerySet
         limit, offset = cls.get_limit_offset(request)
         total = await queryset.count()
 
         objs = await queryset.offset(offset).limit(limit)
-        data = await serializer_fn(queryset, many=True)
-
+        data = await serializer_fn(objs, many=True)
         return {
             "total": total,
             "limit": limit,

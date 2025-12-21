@@ -20,13 +20,15 @@ class CoreSerializers(BaseModel):
 
     @classmethod
     async def from_tortoise(cls, instance):
+        if isinstance(instance,dict):
+            data = instance
+            return cls(**data)
+
         data = await instance.to_dict()
-
-        # 自动处理 ManyToMany 字段
-        m2m_fields = instance._meta.m2m_fields
-
+        m2m_fields = getattr(instance._meta, "m2m_fields", None)
+        if not m2m_fields:
+            return cls(**data)
         for field in m2m_fields:
             related_objs = await getattr(instance, field).all()
             data[field] = [obj.id for obj in related_objs]
-
         return cls(**data)

@@ -57,9 +57,9 @@ class CreateModelMixin(BaseMixin):
         """通用创建方法"""
         data_dict = self.input_data(data)
 
-        obj = await self.queryset.create(**self.exclude_m2m(data_dict))
-        await self.handle_m2m(obj, data_dict)
-        serializer = await self.get_serializer(await obj.to_dict())
+        instance = await self.queryset.create(**self.exclude_m2m(data_dict))
+        await self.handle_m2m(instance, data_dict)
+        serializer = await self.get_serializer(instance)
         return CoreResponse(serializer)
 
 
@@ -97,12 +97,12 @@ class UpdateModelMixin(BaseMixin):
     async def update(self, uuid: Any, data: Any = Body(...)) -> CoreResponse:
         """更新对象（全量或部分更新）"""
         self.kwargs.update(self._get_lookup_kwargs(uuid))
-        obj = await self.get_object()
+        instance = await self.get_object()
 
         data_dict = self.input_data(data)
-        await obj.update_from_dict(self.exclude_m2m(data_dict)).save()
-        await self.handle_m2m(obj, data_dict)
-        serializer = await self.get_serializer(await obj.to_dict())
+        await instance.update_from_dict(self.exclude_m2m(data_dict)).save()
+        await self.handle_m2m(instance, data_dict)
+        serializer = await self.get_serializer(instance)
         return CoreResponse(serializer)
 
 
