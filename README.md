@@ -1,4 +1,4 @@
-# 🚀 Fast Auto Framework
+# 🚀 Fast Generic Api
 
 <div align="center">
 
@@ -15,9 +15,9 @@
 
 </div>
 
-## 🌟 为什么选择 Fast Auto Framework？
+## 🌟 为什么选择 Fast Generic Api？
 
-Fast Auto Framework 是一个专为FastAPI设计的自动化API框架，提供了类似Django REST Framework的开发体验，让你能够快速构建高质量的API服务。
+Fast Generic Api 是一个专为FastAPI设计的自动化API框架，提供了类似Django REST Framework的开发体验，让你能够快速构建高质量的API服务。
 
 <div align="center">
 
@@ -178,7 +178,7 @@ class UserViewSet(mixins.ListModelMixin,
 from fastapi import FastAPI
 from api.views import router
 
-app = FastAPI(title="Fast Auto Framework Example")
+app = FastAPI(title="Fast Generic Api Example")
 app.include_router(router)
 
 if __name__ == "__main__":
