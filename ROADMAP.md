@@ -8,7 +8,7 @@
 
 ---
 
-## 0.2.0（本轮，已实现 / 即将提交）
+## 0.2.0（已发布：tag `v0.2.0`）
 
 - [x] Backend 抽象：Tortoise 默认 + SQLAlchemy 可选
 - [x] `@action` / 按 action 切 serializer / 声明式 FilterSet
@@ -22,6 +22,12 @@
 
 **0.2 定位**：功能闭环的 **beta 可用** 库，API 仍可能小改。
 
+## 0.3.0（已发布：tag `v0.3.0`）
+
+- [x] `?ordering=` 查询排序 + `ordering_fields` 白名单
+- [x] `batch_max_size` 批量上限（默认 100）
+- [x] `HTTPBadRequestException`（40000）+ [docs/ERROR_CODES.md](docs/ERROR_CODES.md)
+- ⏭️ 可选：`?search=` / `search_fields`（放到 0.4）
 ---
 
 ## 为什么你「没思路」——其实是阶段切换了

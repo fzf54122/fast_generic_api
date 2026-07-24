@@ -50,6 +50,8 @@ class ItemViewSet(CreateManyMixin, UpdateManyMixin, DestroyManyMixin, CustomView
     queryset = Item
     filter_class = ItemFilter
     ordering = ["-created_at"]
+    ordering_fields = ["id", "name", "created_at"]
+    batch_max_size = 100
     lookup_field = "id"
 
     serializer_class = ItemSerializer

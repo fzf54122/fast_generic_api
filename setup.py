@@ -11,7 +11,7 @@ long_description = (this_directory / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="fast_generic_api",
-    version="0.2.0",
+    version="0.3.0",
     packages=find_packages(exclude=["venv", "venv.*", ".venv", ".venv.*", "fast_generic_api.example", "fast_generic_api.example.*"]),
     python_requires=">=3.11",
     install_requires=[

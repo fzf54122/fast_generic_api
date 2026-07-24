@@ -10,7 +10,7 @@ Fast Generic API — FastAPI 版 DRF 风格通用 CRUD 框架。
 """
 
 __title__ = "fast_generic_api"
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 __author__ = "fzf"
 __license__ = "MIT"
 __copyright__ = "Copyright 2025 fzf"

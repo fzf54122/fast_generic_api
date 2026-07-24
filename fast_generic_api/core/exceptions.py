@@ -3,6 +3,19 @@
 # @Author  : fzf
 # @FileName: exceptions.py
 # @Software: PyCharm
+"""框架异常与统一错误码。
+
+业务码分段约定（响应体 ``code`` 字段，与 HTTP status 分离）：
+
+- 2xxxx  成功（当前成功统一用 200）
+- 4xxxx  客户端错误
+  - 40000  请求参数/业务校验失败
+  - 40300  权限不足
+  - 40400  资源不存在
+  - 42200  请求体/查询参数 schema 校验失败（Pydantic）
+- 5xxxx  服务端错误
+  - 50000  未分类服务端错误
+"""
 from fastapi import Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -12,9 +25,19 @@ from fast_generic_api.core.response import Response
 
 class FastAutoException(Exception):
     """框架基础异常，子类定义 status_code 与 detail"""
+
     status_code = 500
     code = 50000
     detail = "基础错误"
+
+    def __init__(self, detail: str | None = None, *, code: int | None = None, status_code: int | None = None):
+        if detail is not None:
+            self.detail = detail
+        if code is not None:
+            self.code = code
+        if status_code is not None:
+            self.status_code = status_code
+        super().__init__(self.detail)
 
 
 class HTTPException(FastAutoException):
@@ -27,6 +50,12 @@ class HTTPPermissionException(FastAutoException):
     status_code = 403
     code = 40300
     detail = "Permission denied"
+
+
+class HTTPBadRequestException(FastAutoException):
+    status_code = 400
+    code = 40000
+    detail = "Bad request"
 
 
 async def fast_auto_exception_handler(request: Request, exc: FastAutoException) -> JSONResponse:

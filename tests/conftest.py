@@ -101,6 +101,7 @@ def make_item_viewset(api_router: APIRouter, *, prefix: str = "/items", **overri
         "lookup_field": "id",
         "filter_class": ItemFilter,
         "ordering": ["id"],
+        "ordering_fields": ["id", "name", "is_active"],
         "pagination_class": LimitOffsetPagination,
         "serializer_class": ItemSerializer,
         "serializer_create_class": ItemCreateSerializer,

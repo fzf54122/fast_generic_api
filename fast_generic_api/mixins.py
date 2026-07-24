@@ -9,7 +9,7 @@ from fastapi import Request
 from pydantic import BaseModel, Field
 
 from fast_generic_api.core import status
-from fast_generic_api.core.exceptions import HTTPException
+from fast_generic_api.core.exceptions import HTTPBadRequestException, HTTPException
 from fast_generic_api.core.response import Response
 from fast_generic_api.decorator import action as api_action
 
@@ -64,6 +64,39 @@ class BaseMixin:
         fields_map = getattr(meta, "fields_map", {}) if meta is not None else {}
         return field_name in fields_map
 
+    def _ensure_batch_size(self, size: int) -> None:
+        max_size = getattr(self, "batch_max_size", 100)
+        if size > max_size:
+            raise HTTPBadRequestException(
+                f"Batch size {size} exceeds batch_max_size={max_size}"
+            )
+
+    def get_ordering(self, request: Request) -> list[str]:
+        """解析排序：查询参数优先，字段必须在 ordering_fields 白名单内。"""
+        default_ordering = list(getattr(self, "ordering", None) or [])
+        query_param = getattr(self, "ordering_query_param", "ordering")
+        raw = request.query_params.get(query_param)
+        if not raw:
+            return default_ordering
+
+        allowed = getattr(self, "ordering_fields", None)
+        if allowed is None:
+            allowed = [field.lstrip("-") for field in default_ordering]
+        allowed_set = set(allowed or [])
+        if not allowed_set:
+            raise HTTPBadRequestException("Ordering query parameter is not allowed")
+
+        fields: list[str] = []
+        for part in raw.split(","):
+            name = part.strip()
+            if not name:
+                continue
+            base = name[1:] if name.startswith("-") else name
+            if base not in allowed_set:
+                raise HTTPBadRequestException(f"Invalid ordering field: {base}")
+            fields.append(name)
+        return fields or default_ordering
+
 
 class CreateModelMixin(BaseMixin):
     action = "create"
@@ -94,6 +127,7 @@ class CreateManyMixin(CreateModelMixin):
     async def create_many(self, request: Request, data: BatchCreatePayload) -> Response:
         """批量创建；任意一条失败时整体回滚。"""
         await self.check_permissions()
+        self._ensure_batch_size(len(data.items))
         input_serializer = self.serializer_create_class or self.serializer_class
 
         async def _do():
@@ -111,14 +145,14 @@ class CreateManyMixin(CreateModelMixin):
 
 class ListModelMixin(BaseMixin):
     action = "list"
-    ordering: list = []
 
     async def list(self, request: Request) -> Response:
         """获取对象列表，支持过滤、排序和分页"""
         await self.check_permissions()
         qs = self.filter_queryset(self.get_queryset())
-        if self.ordering:
-            qs = self.backend.order_by(qs, *self.ordering)
+        ordering = self.get_ordering(request)
+        if ordering:
+            qs = self.backend.order_by(qs, *ordering)
 
         if self.pagination_class is not None:
             result = await self.pagination_class.get_paginated_response(
@@ -166,6 +200,7 @@ class UpdateManyMixin(UpdateModelMixin):
     async def update_many(self, request: Request, data: BatchUpdatePayload) -> Response:
         """批量更新；body.items 每项必须包含 lookup_field。"""
         await self.check_permissions()
+        self._ensure_batch_size(len(data.items))
         input_serializer = self.serializer_update_class or self.serializer_class
 
         async def _do():
@@ -228,6 +263,7 @@ class DestroyManyMixin(DestroyModelMixin):
         """批量删除；支持 body.ids 或 query 参数 ?ids=1,2,3。"""
         await self.check_permissions()
         ids = self._get_destroy_ids(request, data)
+        self._ensure_batch_size(len(ids))
 
         async def _do():
             for lookup_value in ids:

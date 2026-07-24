@@ -68,6 +68,14 @@ class GenericAPIView:
     # 写操作默认开启事务
     atomic_actions: bool = True
 
+    # 批量操作上限（Create/Update/Destroy Many）
+    batch_max_size: int = 100
+
+    # 列表默认排序；查询参数 ?ordering= 仅允许 ordering_fields 中的字段
+    ordering: list = []
+    ordering_fields: list | None = None  # None → 默认用 ordering 的字段名作白名单
+    ordering_query_param: str = "ordering"
+
     # ----------------------------------------------------------------------
     # 路由自动注册
     # ----------------------------------------------------------------------

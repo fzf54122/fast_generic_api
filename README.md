@@ -459,9 +459,33 @@ class ItemViewSet(CustomViewSet):
 - OpenAPI 默认使用统一信封 `Envelope[T]`（`envelope_response=False` 可关）
 - 删除：模型有 `is_deleted` 则软删，否则物理删除
 
+### 列表排序（白名单）
+
+```python
+class ItemViewSet(...):
+    ordering = ["-created_at"]           # 默认排序
+    ordering_fields = ["id", "name", "created_at"]  # ?ordering= 允许的字段
+```
+
+- 请求：`GET /api/items/?ordering=-name,id`
+- 非法字段 → HTTP 400，业务码 `40000`
+
+### 批量上限
+
+```python
+class ItemViewSet(...):
+    batch_max_size = 100  # 默认 100；create/update/destroy many 共用
+```
+
+超出上限 → HTTP 400，`code=40000`。
+
+### 错误码
+
+见 [docs/ERROR_CODES.md](docs/ERROR_CODES.md)。
+
 ### 版本与路线
 
-- 当前版本：**0.2.0**
+- 已发布：**0.3.0**（tag `v0.3.0`）
 - 1.0 规划见 [ROADMAP.md](ROADMAP.md)
 
 推荐在多表写入时重写 `perform_create` / `perform_update`，而不是绕过 mixin：
