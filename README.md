@@ -470,23 +470,35 @@ class ItemViewSet(...):
 - 请求：`GET /api/items/?ordering=-name,id`
 - 非法字段 → HTTP 400，业务码 `40000`
 
-### 批量上限
+### 搜索
 
 ```python
 class ItemViewSet(...):
-    batch_max_size = 100  # 默认 100；create/update/destroy many 共用
+    search_fields = ["name", "description"]
 ```
 
-超出上限 → HTTP 400，`code=40000`。
+- 请求：`GET /api/items/?search=apple`（对 `search_fields` 做 OR `icontains`）
 
-### 错误码
+### 强制分页 / 批量上限 / 节流
 
-见 [docs/ERROR_CODES.md](docs/ERROR_CODES.md)。
+```python
+class ItemViewSet(...):
+    force_pagination = True   # 未设 pagination_class 时回退 LimitOffset
+    batch_max_size = 100
+    throttle_classes = []     # 可选：AnonRateThrottle 等
+```
 
-### 版本与路线
+### 错误码 / 钩子 / 迁移
 
-- 已发布：**0.3.0**（tag `v0.3.0`）
-- 1.0 规划见 [ROADMAP.md](ROADMAP.md)
+- [docs/ERROR_CODES.md](docs/ERROR_CODES.md)
+- [docs/HOOKS.md](docs/HOOKS.md)
+- [docs/MIGRATION.md](docs/MIGRATION.md)
+- [CHANGELOG.md](CHANGELOG.md)
+- [ROADMAP.md](ROADMAP.md)
+
+### 版本
+
+- **当前：1.0.0**（公开 API 冻结，破坏性变更走 major）
 
 推荐在多表写入时重写 `perform_create` / `perform_update`，而不是绕过 mixin：
 

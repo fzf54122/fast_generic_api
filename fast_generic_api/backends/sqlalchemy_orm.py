@@ -97,6 +97,17 @@ class SQLAlchemyBackend(BaseBackend):
     def offset_limit(self, queryset: _SQLAQuery, offset: int, limit: int) -> _SQLAQuery:
         return queryset.clone(statement=queryset.statement.offset(offset).limit(limit))
 
+    def search(self, queryset: _SQLAQuery, fields: list[str], term: str) -> _SQLAQuery:
+        if not term or not fields:
+            return queryset
+        from sqlalchemy import or_
+
+        clauses = []
+        for field_name in fields:
+            column = _get_column(queryset.model, field_name)
+            clauses.append(column.ilike(f"%{term}%"))
+        return queryset.clone(statement=queryset.statement.where(or_(*clauses)))
+
     # ------------------------------------------------------------------
     # 执行
     # ------------------------------------------------------------------

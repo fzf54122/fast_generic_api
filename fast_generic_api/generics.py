@@ -76,6 +76,16 @@ class GenericAPIView:
     ordering_fields: list | None = None  # None → 默认用 ordering 的字段名作白名单
     ordering_query_param: str = "ordering"
 
+    # 全文式简单搜索：?search=keyword，仅在 search_fields 内 OR 模糊匹配
+    search_fields: list = []
+    search_query_param: str = "search"
+
+    # 强制分页：True 且未配置 pagination_class 时回退 LimitOffsetPagination
+    force_pagination: bool = False
+
+    # 可选节流类列表：实例需实现 async allow_request(request) -> bool
+    throttle_classes: list = []
+
     # ----------------------------------------------------------------------
     # 路由自动注册
     # ----------------------------------------------------------------------
@@ -216,7 +226,9 @@ class GenericAPIView:
         if method_name == "list":
             data_model = cls.serializer_list_class or cls.serializer_class
             many = True
-            paginated = cls.pagination_class is not None
+            paginated = cls.pagination_class is not None or bool(
+                getattr(cls, "force_pagination", False)
+            )
         elif method_name == "retrieve":
             data_model = cls.serializer_retrieve_class or cls.serializer_class
         elif method_name in ("create", "update", "partial_update"):
@@ -298,6 +310,8 @@ class GenericAPIView:
         self.kwargs = {}
         self.action = None
         self.format_kwarg = None
+        # 请求上下文：user / institution_id / request_id 等由中间件或 hook 写入
+        self.context: dict[str, Any] = {}
 
     @classmethod
     async def _create_view_instance(cls):
@@ -310,6 +324,18 @@ class GenericAPIView:
                 backend = await backend
             view.backend = backend
         return view
+
+    async def check_throttles(self) -> None:
+        """遍历 throttle_classes，任一拒绝则 400（可被子类改写为 429）。"""
+        from fast_generic_api.core.exceptions import HTTPBadRequestException
+
+        for throttle in self.throttle_classes or []:
+            instance = throttle() if inspect.isclass(throttle) else throttle
+            allowed = instance.allow_request(self.request)
+            if inspect.isawaitable(allowed):
+                allowed = await allowed
+            if not allowed:
+                raise HTTPBadRequestException("Request was throttled", code=40029)
 
     # ================================
     # queryset / 对象获取

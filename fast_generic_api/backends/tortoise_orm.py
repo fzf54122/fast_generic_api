@@ -34,6 +34,16 @@ class TortoiseBackend(BaseBackend):
     def offset_limit(self, queryset, offset: int, limit: int):
         return queryset.offset(offset).limit(limit)
 
+    def search(self, queryset, fields: list[str], term: str):
+        if not term or not fields:
+            return queryset
+        from tortoise.expressions import Q
+
+        query = Q()
+        for field_name in fields:
+            query |= Q(**{f"{field_name}__icontains": term})
+        return queryset.filter(query)
+
     # ------------------------------------------------------------------
     # 执行
     # ------------------------------------------------------------------

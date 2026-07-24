@@ -97,6 +97,28 @@ class BaseMixin:
             fields.append(name)
         return fields or default_ordering
 
+    def apply_search(self, queryset, request: Request):
+        """应用 ?search= 跨 search_fields 的 OR 模糊搜索。"""
+        fields = list(getattr(self, "search_fields", None) or [])
+        if not fields:
+            return queryset
+        query_param = getattr(self, "search_query_param", "search")
+        term = (request.query_params.get(query_param) or "").strip()
+        if not term:
+            return queryset
+        return self.backend.search(queryset, fields, term)
+
+    def resolve_pagination_class(self):
+        """force_pagination=True 且未配置分页类时回退 LimitOffsetPagination。"""
+        pagination_class = getattr(self, "pagination_class", None)
+        if pagination_class is not None:
+            return pagination_class
+        if getattr(self, "force_pagination", False):
+            from fast_generic_api.core.pagination import LimitOffsetPagination
+
+            return LimitOffsetPagination
+        return None
+
 
 class CreateModelMixin(BaseMixin):
     action = "create"
@@ -104,6 +126,8 @@ class CreateModelMixin(BaseMixin):
     async def create(self, request: Request, data: Any) -> Response:
         """通用创建方法，默认开启事务"""
         await self.check_permissions()
+        if hasattr(self, "check_throttles"):
+            await self.check_throttles()
 
         async def _do():
             obj = await self.perform_create(data)
@@ -147,15 +171,19 @@ class ListModelMixin(BaseMixin):
     action = "list"
 
     async def list(self, request: Request) -> Response:
-        """获取对象列表，支持过滤、排序和分页"""
+        """获取对象列表，支持过滤、搜索、排序和分页"""
         await self.check_permissions()
+        if hasattr(self, "check_throttles"):
+            await self.check_throttles()
         qs = self.filter_queryset(self.get_queryset())
+        qs = self.apply_search(qs, request)
         ordering = self.get_ordering(request)
         if ordering:
             qs = self.backend.order_by(qs, *ordering)
 
-        if self.pagination_class is not None:
-            result = await self.pagination_class.get_paginated_response(
+        pagination_class = self.resolve_pagination_class()
+        if pagination_class is not None:
+            result = await pagination_class.get_paginated_response(
                 request, qs, self.get_serializer, backend=self.backend
             )
             return Response(result)

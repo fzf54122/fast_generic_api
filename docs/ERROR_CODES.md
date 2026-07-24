@@ -28,6 +28,7 @@
 |------|------|-------------|------|
 | 200 | 2xx | 成功 | 业务成功；HTTP 可能是 200/201/204 |
 | 40000 | 400 | `HTTPBadRequestException` | 非法 ordering、batch 超限等业务校验 |
+| 40029 | 400 | throttled（默认） | `throttle_classes` 拒绝；可用自定义 code |
 | 40300 | 403 | `HTTPPermissionException` | 权限不足 |
 | 40400 | 404 | `HTTPException` | 资源不存在 |
 | 42200 | 422 | `RequestValidationError` | Pydantic 请求体/查询参数校验失败；`data` 为错误列表 |

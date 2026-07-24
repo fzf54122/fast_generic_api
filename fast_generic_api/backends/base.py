@@ -46,6 +46,10 @@ class BaseBackend(ABC):
     def offset_limit(self, queryset, offset: int, limit: int):
         """分页切片"""
 
+    def search(self, queryset, fields: list[str], term: str):
+        """跨字段模糊搜索（OR）。默认未实现时原样返回。"""
+        return queryset
+
     # ------------------------------------------------------------------
     # 执行
     # ------------------------------------------------------------------
