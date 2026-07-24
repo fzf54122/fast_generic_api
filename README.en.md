@@ -1,340 +1,387 @@
-# 🚀 Fast Auto Framework
+# fast_generic_api
 
 <div align="center">
 
-**A powerful and elegantly designed FastAPI automation API framework, providing a Django REST Framework-like experience**
+**DRF-style generic CRUD for FastAPI**  
+Tortoise ORM (default) · SQLAlchemy 2.x async (optional) · unified response envelope · tests
 
 [简体中文](README.md) | **English**
 
 [![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green.svg)](https://fastapi.tiangolo.com/)
-[![Tortoise ORM](https://img.shields.io/badge/Tortoise%20ORM-0.20+-orange.svg)](https://tortoise-orm.readthedocs.io/)
+[![PyPI](https://img.shields.io/badge/PyPI-1.0.0-blue.svg)](https://pypi.org/project/fast-generic-api/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-[📖 Quick Start](#-quick-start) • [🏗️ Core Features](#-core-features) • [📚 API Reference](#-api-reference) • [🔧 Advanced Configuration](#-advanced-configuration) • [🤝 Contribution](#-contribution)
-
 </div>
 
-## 🌟 Why Choose Fast Auto Framework?
+## Features
 
-Fast Auto Framework is an automation API framework specifically designed for FastAPI, providing a development experience similar to Django REST Framework, allowing you to quickly build high-quality API services.
+| Feature | Notes |
+|---------|--------|
+| RESTful CRUD | list / create / retrieve / update / partial_update / destroy |
+| Batch ops | `CreateManyMixin` / `UpdateManyMixin` / `DestroyManyMixin` → `/batch/` |
+| `@action` | Custom detail / collection routes |
+| Declarative FilterSet | Pydantic-style query params, OpenAPI-visible |
+| Ordering / search | `?ordering=` allowlist, `?search=` + `search_fields` |
+| Pagination | `LimitOffsetPagination` / `PageNumberPagination`, optional `force_pagination` |
+| Permissions | `permission_classes` + FastAPI `permissions` dependencies |
+| Soft / hard delete | Soft-delete when `is_deleted` exists, else hard delete |
+| Multi-ORM | `TortoiseBackend` default, `SQLAlchemyBackend` optional |
+| Response envelope | `{code,status,data,msg}`, OpenAPI `Envelope[T]` |
+| Transactions | Write ops default to `backend.in_transaction()` |
+| Throttling | Optional `throttle_classes` (in-process) |
 
-<div align="center">
+Current version: **1.0.0** (public API frozen; breaking changes go major)
 
-| 🎯 **CRUD Automation** | ⚡ **Rapid Development** | 🛡️ **Type Safety** | 📈 **High Extensibility** |
-|:---:|:---:|:---:|:---:|
-| Built-in complete CRUD operations | Create APIs in just a few lines of code | Based on Pydantic and Python type annotations | Modular design, easy to extend |
-
-</div>
-
-## ✨ Core Features
-
-### 🔧 CRUD Operations Automation
-- **CreateModelMixin** - Create resources
-- **ListModelMixin** - List query (supports pagination and filtering)
-- **RetrieveModelMixin** - Detail query
-- **UpdateModelMixin** - Full update
-- **PartialUpdateModelMixin** - Partial update
-- **DestroyModelMixin** - Soft delete functionality
-
-### 📦 Generic API Views
-- **GenericAPIView** - Unified API view base class
-- **Automatic Route Registration** - Automatic route generation based on class attributes
-- **Permission Control** - Flexible permission dependency injection
-- **Serializer Support** - Support for different serializers for different operations
-
-### 🌐 Response Handling
-- **Unified Response Format** - Standardized API response structure
-- **Pagination Response** - Built-in pagination information
-- **Error Handling** - Unified error response format
-- **JSON Serialization** - Automatically handles Pydantic and datetime types
-
-### 🏗️ Advanced Features
-- **Filter System** - Flexible query filtering
-- **Pagination Support** - LimitOffset pagination mechanism
-- **UUID Support** - Custom UUID as primary key
-- **Sorting Functionality** - Support for multi-field sorting
-
-## 🛠️ Technology Stack
-
-| Component | Technology Selection | Version Requirements |
-|-----------|----------------------|----------------------|
-| **Web Framework** | FastAPI | 0.100+ |
-| **ORM** | Tortoise ORM | 0.20+ |
-| **Serialization** | Pydantic | 2.0+ |
-| **Database** | Supports multiple databases | - |
-| **Python Version** | Python | 3.11+ |
-
-## 📁 Project Structure
-
-```
-fast_auto_framework/
-├── __init__.py                 # Package initialization
-├── mixins.py                   # CRUD mixin classes
-├── generics.py                 # Generic API views
-├── core/                       # Core modules
-│   ├── __init__.py            # Core module initialization
-│   ├── exceptions.py          # Custom exceptions
-│   ├── filter.py              # Filter system
-│   ├── pagination.py          # Pagination functionality
-│   ├── response.py            # Unified response
-│   └── status.py              # HTTP status codes
-├── example/                    # Example code
-│   ├── __init__.py            # Example module initialization
-│   └── example.py             # Usage examples
-└── README.md                   # Project documentation
-```
-
-## 🚀 Quick Start
-
-### ⚡ Install Dependencies
+## Install
 
 ```bash
-# Clone the project
-git clone git@github.com:fzf54122/fast_generic_api.git
-cd fast_auto_framework
+pip install fast-generic-api==1.0.0
 
-# Install dependencies
-pip install fastapi tortoise-orm pydantic
+# Optional SQLAlchemy extra
+pip install "fast-generic-api[sqlalchemy]"
 ```
 
-### 💻 Basic Usage
+Development:
 
-#### 1. Create Model
+```bash
+git clone git@github.com:fzf54122/fast_generic_api.git
+cd fast_generic_api
+pip install -e ".[test]"
+pytest tests/ -q
+```
+
+## Quick start
 
 ```python
-from tortoise.models import Model
-from tortoise import fields
+from fastapi import APIRouter, FastAPI
+from tortoise import fields, models
+from tortoise.contrib.fastapi import register_tortoise
 
-class User(Model):
+from fast_generic_api.core.exceptions import register_exception_handlers
+from fast_generic_api.core.filter import FilterSet
+from fast_generic_api.core.pagination import LimitOffsetPagination
+from fast_generic_api.core.schemas import AutoSchemas
+from fast_generic_api.generics import CustomViewSet
+from fast_generic_api.mixins import CreateManyMixin, DestroyManyMixin, UpdateManyMixin
+
+
+class Item(models.Model):
     id = fields.IntField(pk=True)
-    username = fields.CharField(max_length=100, unique=True)
-    email = fields.CharField(max_length=100, unique=True)
+    name = fields.CharField(max_length=100)
+    description = fields.TextField(null=True)
     is_deleted = fields.BooleanField(default=False)
     created_at = fields.DatetimeField(auto_now_add=True)
-    updated_at = fields.DatetimeField(auto_now=True)
 
     class Meta:
-        table = "users"
-```
+        table = "items"
 
-#### 2. Create Serializers
 
-```python
-from pydantic import BaseModel
-from datetime import datetime
-
-class UserBase(BaseModel):
-    username: str
-    email: str
-
-class UserCreate(UserBase):
-    pass
-
-class UserUpdate(UserBase):
-    pass
-
-class UserInDB(UserBase):
+class ItemSerializer(AutoSchemas):
     id: int
-    created_at: datetime
-    updated_at: datetime
+    name: str
+    description: str | None = None
     is_deleted: bool
 
-    class Config:
-        from_attributes = True
-```
 
-#### 3. Create API Views
+class ItemCreateSerializer(AutoSchemas):
+    name: str
+    description: str | None = None
 
-```python
-from fastapi import APIRouter
-from fast_auto_framework.generics import GenericAPIView
-from fast_auto_framework import mixins
-from models import User
-from serializers import UserInDB, UserCreate, UserUpdate
 
-# Create router
-router = APIRouter(prefix="/api", tags=["Users"])
+class ItemUpdateSerializer(AutoSchemas):
+    name: str | None = None
+    description: str | None = None
 
-class UserViewSet(mixins.ListModelMixin,
-                 mixins.CreateModelMixin,
-                 mixins.RetrieveModelMixin,
-                 mixins.UpdateModelMixin,
-                 mixins.DestroyModelMixin,
-                 GenericAPIView):
+
+class ItemFilter(FilterSet):
+    model = Item
+    name__icontains: str | None = None
+
+
+app = FastAPI()
+router = APIRouter()
+
+
+class ItemViewSet(CreateManyMixin, UpdateManyMixin, DestroyManyMixin, CustomViewSet):
     router = router
-    prefix = "/users"
-    queryset = User
-    serializer_class = UserInDB
-    serializer_create_class = UserCreate
-    serializer_update_class = UserUpdate
-    ordering = ["-created_at"]
+    prefix = "/api/items"
+    queryset = Item
     lookup_field = "id"
-```
+    filter_class = ItemFilter
+    ordering = ["-created_at"]
+    ordering_fields = ["id", "name", "created_at"]
+    search_fields = ["name", "description"]
+    pagination_class = LimitOffsetPagination
+    serializer_class = ItemSerializer
+    serializer_create_class = ItemCreateSerializer
+    serializer_update_class = ItemUpdateSerializer
 
-#### 4. Start Application
 
-```python
-from fastapi import FastAPI
-from api.views import router
-
-app = FastAPI(title="Fast Auto Framework Example")
 app.include_router(router)
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+register_exception_handlers(app)
+register_tortoise(
+    app,
+    db_url="sqlite://db.sqlite3",
+    modules={"models": ["__main__"]},  # adjust to your module path
+    generate_schemas=True,
+)
 ```
 
-## 📚 API Reference
+Routes:
 
-### Available Mixin Classes
+| Method | Path |
+|--------|------|
+| GET | `/api/items/` |
+| POST | `/api/items/` |
+| GET | `/api/items/{id}/` |
+| PUT / PATCH | `/api/items/{id}/` |
+| DELETE | `/api/items/{id}/` |
+| POST / PUT / DELETE | `/api/items/batch/` |
 
-#### CreateModelMixin
-- **Method**: `POST /{prefix}/create/`
-- **Functionality**: Create new resources
-- **Request Body**: Defined by `serializer_create_class`
-- **Response**: Details of the created resource
+Query example:
 
-#### ListModelMixin
-- **Method**: `GET /{prefix}/list/`
-- **Functionality**: Get resource list
-- **Query Parameters**: 
-  - `limit`: Number per page (default: 10, max: 1000)
-  - `offset`: Offset (default: 0)
-  - Other filter fields
-- **Response**: Paginated resource list
+```text
+GET /api/items/?name__icontains=foo&ordering=-name&search=bar&limit=10&offset=0
+```
 
-#### RetrieveModelMixin
-- **Method**: `GET /{prefix}/{lookup_field}/`
-- **Functionality**: Get single resource details
-- **Path Parameters**: 
-  - `{lookup_field}`: Resource identifier
-- **Response**: Resource details
+Full dual-resource example (tenant isolation, multi-table create): [`fast_generic_api/example/`](fast_generic_api/example/)
 
-#### UpdateModelMixin
-- **Method**: `PUT /{prefix}/{lookup_field}/`
-- **Functionality**: Full update of resource
-- **Path Parameters**: 
-  - `{lookup_field}`: Resource identifier
-- **Request Body**: Defined by `serializer_update_class`
-- **Response**: Updated resource details
+```bash
+cd fast_generic_api/example
+python main.py
+# open http://127.0.0.1:8000/docs
+```
 
-#### PartialUpdateModelMixin
-- **Method**: `PATCH /{prefix}/{lookup_field}/`
-- **Functionality**: Partial update of resource
-- **Path Parameters**: 
-  - `{lookup_field}`: Resource identifier
-- **Request Body**: Partial fields (optional)
-- **Response**: Updated resource details
+## Project layout
 
-#### DestroyModelMixin
-- **Method**: `DELETE /{prefix}/{lookup_field}/`
-- **Functionality**: Soft delete resource (sets `is_deleted=True`)
-- **Path Parameters**: 
-  - `{lookup_field}`: Resource identifier
-- **Response**: Success status (204 No Content)
+```text
+fast_generic_api/
+├── backends/           # BaseBackend / Tortoise / SQLAlchemy
+├── core/
+│   ├── exceptions.py
+│   ├── filter.py
+│   ├── pagination.py
+│   ├── permissions.py
+│   ├── response.py     # Response + Envelope
+│   ├── schemas.py      # AutoSchemas
+│   ├── serializers.py  # ModelSerializer (Tortoise)
+│   ├── throttling.py
+│   └── status.py
+├── decorator.py        # @action / @api_meta
+├── generics.py
+├── mixins.py
+└── example/            # Item + Note living docs
+docs/
+├── ERROR_CODES.md
+├── HOOKS.md
+└── MIGRATION.md
+tests/
+```
 
-### GenericAPIView Configuration
+## Response envelope
 
-| Attribute | Type | Description | Default Value |
-|-----------|------|-------------|---------------|
-| `router` | APIRouter | FastAPI router instance | None |
-| `prefix` | str | API path prefix | None |
-| `queryset` | Model | Database model | None |
-| `serializer_class` | BaseModel | Default serializer | None |
-| `serializer_create_class` | BaseModel | Serializer for create operations | None |
-| `serializer_update_class` | BaseModel | Serializer for update operations | None |
-| `lookup_field` | str | Resource lookup field | "pk" |
-| `ordering` | list | Default ordering fields | None |
-| `pagination_class` | class | Pagination class | None |
-| `filter_class` | class | Filter class | None |
-| `permissions` | list | Permission dependency list | [] |
-| `loop_uuid_field` | str | UUID field name | None |
+```json
+{
+  "code": 200,
+  "status": "success",
+  "data": { "...": "..." },
+  "msg": "OK"
+}
+```
 
-## 🔧 Advanced Configuration
+| Case | HTTP | Business `code` |
+|------|------|-----------------|
+| Success | 200 / 201 / 204 | 200 |
+| Business validation | 400 | 40000 |
+| Throttled | 400 | 40029 |
+| Permission denied | 403 | 40300 |
+| Not found | 404 | 40400 |
+| Schema validation | 422 | 42200 |
 
-### Custom Filtering
+See [docs/ERROR_CODES.md](docs/ERROR_CODES.md).
+
+## Mixins
+
+| Mixin | Method | Path |
+|-------|--------|------|
+| CreateModelMixin | POST | `/{prefix}/` |
+| ListModelMixin | GET | `/{prefix}/` |
+| RetrieveModelMixin | GET | `/{prefix}/{lookup}/` |
+| UpdateModelMixin | PUT | `/{prefix}/{lookup}/` |
+| PartialUpdateModelMixin | PATCH | `/{prefix}/{lookup}/` |
+| DestroyModelMixin | DELETE | `/{prefix}/{lookup}/` |
+| CreateManyMixin | POST | `/{prefix}/batch/` body `{"items":[...]}` |
+| UpdateManyMixin | PUT | `/{prefix}/batch/` body `{"items":[{"id":1,...}]}` |
+| DestroyManyMixin | DELETE | `/{prefix}/batch/` body `{"ids":[...]}` or `?ids=1,2` |
+
+Combinations: `CustomViewSet`, `ListCreateViewSet`, `RetrieveUpdateDestroyViewSet`, etc. in `generics.py`.
+
+## Common GenericAPIView settings
+
+| Attribute | Purpose | Default |
+|-----------|---------|---------|
+| `router` / `prefix` | Route registration | required |
+| `queryset` | Model class | required |
+| `lookup_field` | Path lookup field | `"pk"` |
+| `backend` / `backend_provider` | ORM adapter / per-request inject | Tortoise |
+| `serializer_*_class` | Per-action serializers | — |
+| `filter_class` | FilterSet | None |
+| `pagination_class` / `force_pagination` | Pagination | None / False |
+| `ordering` / `ordering_fields` | Default order + allowlist | `[]` / None |
+| `search_fields` | `?search=` fields | `[]` |
+| `permission_classes` | Business permissions | `[]` |
+| `permissions` | FastAPI auth Depends | `[]` |
+| `throttle_classes` | Throttles | `[]` |
+| `batch_max_size` | Batch limit | 100 |
+| `select_related` / `prefetch_related` | Relation loading | `[]` |
+| `atomic_actions` | Wrap writes in transaction | True |
+| `envelope_response` | OpenAPI envelope | True |
+
+Override hooks: [docs/HOOKS.md](docs/HOOKS.md).
+
+## Custom actions
 
 ```python
-from fast_auto_framework.core.filter import FilterSet
-from models import User
+from fastapi import Request
+from fast_generic_api.core.response import Response
+from fast_generic_api.decorator import action
 
-class UserFilter(FilterSet):
-    model = User
-    exclude_fields = {"offset", "limit"}
-    
-    # Custom filter methods
+class ItemViewSet(...):
+    @action(detail=True, methods=["POST"], url_path="toggle-active")
+    async def toggle_active(self, request: Request) -> Response:
+        obj = await self.get_object()
+        obj.is_active = not obj.is_active
+        await self.backend.save(obj)
+        return Response(self.get_serializer(obj))
+```
+
+- `detail=True` → `/{prefix}/{lookup}/toggle-active/`
+- `detail=False` → `/{prefix}/toggle-active/`
+
+## Filtering
+
+```python
+class ItemFilter(FilterSet):
+    model = Item
+    name__icontains: str | None = None
+    is_active: bool | None = None
+    # Legacy callbacks still work
     filters = {
-        "username": lambda qs, field, value: qs.filter(username__icontains=value),
         "email": lambda qs, field, value: qs.filter(email__icontains=value),
     }
-
-# Use in view
-class UserViewSet(...):
-    filter_class = UserFilter
 ```
 
-### Custom Pagination
+## Ordering / search / batch limit
 
 ```python
-from fast_auto_framework.core.pagination import LimitOffsetPagination
-
-class CustomPagination(LimitOffsetPagination):
-    default_limit = 20
-    max_limit = 500
-
-# Use in view
-class UserViewSet(...):
-    pagination_class = CustomPagination
+class ItemViewSet(...):
+    ordering = ["-created_at"]
+    ordering_fields = ["id", "name", "created_at"]
+    search_fields = ["name", "description"]
+    batch_max_size = 100
+    force_pagination = True
 ```
 
-### Permission Control
+- `GET .../?ordering=-name,id`
+- `GET .../?search=apple`
+- Invalid ordering / oversized batch → HTTP `400`, business `code=40000`
+
+## Permissions
 
 ```python
 from fastapi import Depends
-from fastapi.security import OAuth2PasswordBearer
-from fast_auto_framework.core.exceptions import HTTPPermissionException
+from fast_generic_api.core.permissions import BasePermission
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+class IsOwner(BasePermission):
+    async def has_object_permission(self, request, obj) -> bool:
+        return getattr(obj, "owner_id", None) == getattr(request.user, "id", None)
 
-async def get_current_active_user(token: str = Depends(oauth2_scheme)):
-    # Token validation logic
-    if not is_valid_token(token):
-        raise HTTPPermissionException
-    return user
-
-# Use in view
-class UserViewSet(...):
-    permissions = [Depends(get_current_active_user)]
+class ItemViewSet(...):
+    permissions = [Depends(get_current_user)]  # auth
+    permission_classes = [IsOwner]             # object-level
 ```
 
-## 📦 Dependencies
+## Transactions & multi-table writes
 
-- **FastAPI** - Web framework
-- **Tortoise ORM** - Asynchronous ORM
-- **Pydantic** - Data validation and serialization
+Writes run inside `backend.in_transaction()` by default. Any failure in a batch rolls back the whole batch.
 
-## 🤝 Contribution
+```python
+class ItemViewSet(...):
+    async def perform_create(self, data):
+        payload = self.serialize_input_data(data)
+        notes = payload.pop("notes", [])
+        item = await self.backend.create(Item, **payload)
+        for content in notes:
+            await self.backend.create(Note, item_id=item.id, content=content)
+        return item
+```
 
-Welcome to submit Issues and Pull Requests to help improve this project!
+## Multi-ORM
 
-### Contribution Process
+Tortoise (default):
 
-1. Fork the project
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+```python
+from fast_generic_api.backends import tortoise_backend
 
-## 📄 License
+class ItemViewSet(...):
+    backend = tortoise_backend  # optional
+```
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
+SQLAlchemy 2.x async:
 
-## 💖 Acknowledgments
+```python
+from fast_generic_api.backends import SQLAlchemyBackend
 
-- Thanks to [FastAPI](https://fastapi.tiangolo.com/) for providing an excellent web framework
-- Thanks to [Django REST Framework](https://www.django-rest-framework.org/) for providing design inspiration
-- Thanks to all developers who use and support this project!
+async def sa_backend():
+    session = SessionLocal()
+    return SQLAlchemyBackend(session)
 
-> 🚀 **Get Started**: Follow the quick start guide to build powerful API services in just 5 minutes!
+class ItemViewSet(...):
+    queryset = SAItem
+    backend_provider = sa_backend
+```
+
+See `tests/test_sqlalchemy_backend.py`.
+
+## ModelSerializer / field control
+
+```python
+from fast_generic_api.core.serializers import ModelSerializer
+from fast_generic_api.core.schemas import AutoSchemas
+
+class ItemSerializer(ModelSerializer):
+    class Meta:
+        model = Item
+        fields = ("id", "name", "description")
+        read_only_fields = ("id",)
+
+class ItemListSerializer(AutoSchemas):
+    id: int
+    name: str
+    class Meta:
+        fields = ("id", "name")
+```
+
+> `ModelSerializer` currently targets Tortoise `_meta`. For SQLAlchemy, write Pydantic models by hand.
+
+## Docs index
+
+| Doc | Content |
+|-----|---------|
+| [docs/ERROR_CODES.md](docs/ERROR_CODES.md) | Business error codes |
+| [docs/HOOKS.md](docs/HOOKS.md) | Override hooks & class attrs |
+| [docs/MIGRATION.md](docs/MIGRATION.md) | Version migration |
+| [CHANGELOG.md](CHANGELOG.md) | Changelog |
+| [ROADMAP.md](ROADMAP.md) | 1.x direction |
+
+## Tests
+
+```bash
+pip install -e ".[test]"
+pytest tests/ -q --cov=fast_generic_api
+```
+
+## License
+
+MIT — see [LICENSE](LICENSE)
