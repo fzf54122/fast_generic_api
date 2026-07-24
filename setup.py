@@ -7,12 +7,23 @@ from setuptools import setup, find_packages
 from pathlib import Path
 
 this_directory = Path(__file__).parent
-long_description = (this_directory / "README.md").read_text(encoding="utf-8")
+readme_md = this_directory / "README.md"
+readme_rst = this_directory / "README.rst"
+if readme_md.exists():
+    long_description = readme_md.read_text(encoding="utf-8")
+    long_description_content_type = "text/markdown"
+elif readme_rst.exists():
+    long_description = readme_rst.read_text(encoding="utf-8")
+    long_description_content_type = "text/x-rst"
+else:
+    long_description = "DRF-style generic CRUD for FastAPI (Tortoise ORM / SQLAlchemy)"
+    long_description_content_type = "text/plain"
 
 setup(
     name="fast_generic_api",
     version="1.0.0",
     packages=find_packages(exclude=["venv", "venv.*", ".venv", ".venv.*", "fast_generic_api.example", "fast_generic_api.example.*"]),
+    include_package_data=True,
     python_requires=">=3.11",
     install_requires=[
         "fastapi>=0.100",
@@ -39,7 +50,7 @@ setup(
     author="fzf",
     description="DRF-style generic CRUD for FastAPI (Tortoise ORM / SQLAlchemy)",
     long_description=long_description,
-    long_description_content_type="text/markdown",
+    long_description_content_type=long_description_content_type,
     url="https://github.com/fzf54122/fast_generic_api",
     classifiers=[
         "Programming Language :: Python :: 3.11",
