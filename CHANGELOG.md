@@ -2,6 +2,13 @@
 
 本项目遵循 [Semantic Versioning](https://semver.org/)。
 
+## 1.0.1
+
+### Changed
+
+- Rewrite README / README.en to match 1.0 API while restoring original visual style
+- Packaging already includes README.md via MANIFEST.in (PyPI long_description refresh)
+
 ## 1.0.0
 
 ### Added

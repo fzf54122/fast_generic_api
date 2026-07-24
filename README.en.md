@@ -9,7 +9,7 @@
 [![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green.svg)](https://fastapi.tiangolo.com/)
 [![Tortoise ORM](https://img.shields.io/badge/Tortoise%20ORM-0.20+-orange.svg)](https://tortoise-orm.readthedocs.io/)
-[![PyPI](https://img.shields.io/badge/PyPI-1.0.0-blue.svg)](https://pypi.org/project/fast-generic-api/)
+[![PyPI](https://img.shields.io/badge/PyPI-1.0.1-blue.svg)](https://pypi.org/project/fast-generic-api/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 [📖 Quick Start](#-quick-start) • [🏗️ Core Features](#-core-features) • [📚 API Reference](#-api-reference) • [🔧 Advanced Configuration](#-advanced-configuration) • [🤝 Contribution](#-contribution)
@@ -28,7 +28,7 @@ Fast Generic API is an automation API framework for FastAPI with a DRF-like deve
 
 </div>
 
-Current version: **1.0.0** (public API frozen; breaking changes go major)
+Current version: **1.0.1** (public API frozen; breaking changes go major)
 
 ## ✨ Core Features
 
@@ -77,7 +77,7 @@ Current version: **1.0.0** (public API frozen; breaking changes go major)
 
 ```text
 fast_generic_api/
-├── __init__.py                 # VERSION=1.0.0
+├── __init__.py                 # VERSION=1.0.1
 ├── mixins.py                   # CRUD + batch mixins
 ├── generics.py                 # GenericAPIView / ViewSet combos
 ├── decorator.py                # @action / @api_meta
@@ -111,7 +111,7 @@ tests/
 ### ⚡ Install
 
 ```bash
-pip install fast-generic-api==1.0.0
+pip install fast-generic-api==1.0.1
 
 # Optional SQLAlchemy
 pip install "fast-generic-api[sqlalchemy]"

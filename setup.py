@@ -21,7 +21,7 @@ else:
 
 setup(
     name="fast_generic_api",
-    version="1.0.0",
+    version="1.0.1",
     packages=find_packages(exclude=["venv", "venv.*", ".venv", ".venv.*", "fast_generic_api.example", "fast_generic_api.example.*"]),
     include_package_data=True,
     python_requires=">=3.11",

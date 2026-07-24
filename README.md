@@ -9,7 +9,7 @@
 [![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green.svg)](https://fastapi.tiangolo.com/)
 [![Tortoise ORM](https://img.shields.io/badge/Tortoise%20ORM-0.20+-orange.svg)](https://tortoise-orm.readthedocs.io/)
-[![PyPI](https://img.shields.io/badge/PyPI-1.0.0-blue.svg)](https://pypi.org/project/fast-generic-api/)
+[![PyPI](https://img.shields.io/badge/PyPI-1.0.1-blue.svg)](https://pypi.org/project/fast-generic-api/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 [📖 快速开始](#-快速开始) • [🏗️ 核心功能](#-核心功能) • [📚 API参考](#-api参考) • [🔧 高级配置](#-高级配置) • [🤝 贡献](#-贡献)
@@ -28,7 +28,7 @@ Fast Generic API 是一个专为 FastAPI 设计的自动化 API 框架，提供�
 
 </div>
 
-当前版本：**1.0.0**（公开 API 冻结，破坏性变更走 major）
+当前版本：**1.0.1**（公开 API 冻结，破坏性变更走 major）
 
 ## ✨ 核心功能
 
@@ -78,7 +78,7 @@ Fast Generic API 是一个专为 FastAPI 设计的自动化 API 框架，提供�
 
 ```text
 fast_generic_api/
-├── __init__.py                 # 包初始化（VERSION=1.0.0）
+├── __init__.py                 # 包初始化（VERSION=1.0.1）
 ├── mixins.py                   # CRUD + 批量混入类
 ├── generics.py                 # GenericAPIView / 组合 ViewSet
 ├── decorator.py                # @action / @api_meta
@@ -113,7 +113,7 @@ tests/                          # pytest 套件
 
 ```bash
 # PyPI
-pip install fast-generic-api==1.0.0
+pip install fast-generic-api==1.0.1
 
 # 可选 SQLAlchemy
 pip install "fast-generic-api[sqlalchemy]"
