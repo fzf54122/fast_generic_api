@@ -4,31 +4,21 @@
 # @FileName: __init__.py
 # @Software: PyCharm
 r"""
- _____         _     ____  _____ ____ _____    __                                             _
-|  ___|_ _ ___| |_  |  _ \| ____/ ___|_   _|  / _|_ __ __ _ _ __ ___   _____      _____  _ __| | __
-| |_ / _` / __| __| | |_) |  _| \___ \ | |   | |_| '__/ _` | '_ ` _ \ / _ \ \ /\ / / _ \| '__| |/ /
-|  _| (_| \__ \ |_  |  _ <| |___ ___) || |   |  _| | | (_| | | | | | |  __/\ V  V / (_) | |  |   <
-|_|  \__,_|___/\__| |_| \_\_____|____/ |_|   |_| |_|  \__,_|_| |_| |_|\___| \_/\_/ \___/|_|  |_|\_\
+Fast Generic API — FastAPI 版 DRF 风格通用 CRUD 框架。
+
+支持 Tortoise ORM（默认）与 SQLAlchemy 2.x async（可选）。
 """
 
-__title__ = 'Fast REST framework'
-__version__ = '0.1.0'
-__author__ = 'Tom Christie'
-__license__ = 'BSD 3-Clause'
-__copyright__ = 'Copyright 2011-2023 Encode OSS Ltd'
+__title__ = "fast_generic_api"
+__version__ = "0.2.0"
+__author__ = "fzf"
+__license__ = "MIT"
+__copyright__ = "Copyright 2025 fzf"
 
-# Version synonym
 VERSION = __version__
 
 # Header encoding (see RFC5987)
-HTTP_HEADER_ENCODING = 'iso-8859-1'
+HTTP_HEADER_ENCODING = "iso-8859-1"
 
 # Default datetime input and output formats
-ISO_8601 = 'iso-8601'
-
-class RemovedInDRF315Warning(DeprecationWarning):
-    pass
-
-
-class RemovedInDRF317Warning(PendingDeprecationWarning):
-    pass
+ISO_8601 = "iso-8601"

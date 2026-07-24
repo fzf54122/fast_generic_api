@@ -104,3 +104,7 @@ conf/dev_env.py
 conf/qa_env.py
 conf/prep_env.py
 conf/prod_env.py
+###############
+.venv
+PLAN.md
+.token

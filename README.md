@@ -68,7 +68,7 @@ Fast Auto Framework 是一个专为FastAPI设计的自动化API框架，提供�
 ## 📁 项目结构
 
 ```
-fast_auto_framework/
+fast_generic_api/
 ├── __init__.py                 # 包初始化
 ├── mixins.py                   # CRUD混入类
 ├── generics.py                 # 通用API视图
@@ -92,7 +92,7 @@ fast_auto_framework/
 ```bash
 # 克隆项目
 git clone git@github.com:fzf54122/fast_generic_api.git
-cd fast_auto_framework
+cd fast_generic_api
 
 # 安装依赖
 pip install fastapi tortoise-orm pydantic
@@ -148,8 +148,8 @@ class UserInDB(UserBase):
 
 ```python
 from fastapi import APIRouter
-from fast_auto_framework.generics import GenericAPIView
-from fast_auto_framework import mixins
+from fast_generic_api.generics import GenericAPIView
+from fast_generic_api import mixins
 from models import User
 from serializers import UserInDB, UserCreate, UserUpdate
 
@@ -191,13 +191,19 @@ if __name__ == "__main__":
 ### 可用的Mixin类
 
 #### CreateModelMixin
-- **方法**: `POST /{prefix}/create/`
+- **方法**: `POST /{prefix}/`
 - **功能**: 创建新资源
 - **请求体**: 根据 `serializer_create_class` 定义
 - **响应**: 创建的资源详情
 
+#### CreateManyMixin
+- **方法**: `POST /{prefix}/batch/`
+- **功能**: 批量创建资源，事务内逐条调用 `perform_create`
+- **请求体**: `{"items": [{...}, {...}]}`
+- **响应**: 创建后的资源列表
+
 #### ListModelMixin
-- **方法**: `GET /{prefix}/list/`
+- **方法**: `GET /{prefix}/`
 - **功能**: 获取资源列表
 - **查询参数**: 
   - `limit`: 每页数量（默认：10，最大：1000）
@@ -220,6 +226,12 @@ if __name__ == "__main__":
 - **请求体**: 根据 `serializer_update_class` 定义
 - **响应**: 更新后的资源详情
 
+#### UpdateManyMixin
+- **方法**: `PUT /{prefix}/batch/`
+- **功能**: 批量更新资源，事务内逐条调用 `perform_update`
+- **请求体**: `{"items": [{"id": 1, "name": "new"}]}`，每项需包含 `lookup_field`
+- **响应**: 更新后的资源列表
+
 #### PartialUpdateModelMixin
 - **方法**: `PATCH /{prefix}/{lookup_field}/`
 - **功能**: 部分更新资源
@@ -235,6 +247,12 @@ if __name__ == "__main__":
   - `{lookup_field}`: 资源标识符
 - **响应**: 成功状态（204 No Content）
 
+#### DestroyManyMixin
+- **方法**: `DELETE /{prefix}/batch/`
+- **功能**: 批量软删除资源，事务内逐条调用 `perform_destroy`
+- **请求体**: `{"ids": [1, 2]}`，也支持查询参数 `?ids=1,2`
+- **响应**: 成功状态（204 No Content）
+
 ### GenericAPIView配置
 
 | 属性 | 类型 | 描述 | 默认值 |
@@ -245,28 +263,57 @@ if __name__ == "__main__":
 | `serializer_class` | BaseModel | 默认序列化器 | None |
 | `serializer_create_class` | BaseModel | 创建操作序列化器 | None |
 | `serializer_update_class` | BaseModel | 更新操作序列化器 | None |
+| `serializer_list_class` | BaseModel | 列表响应序列化器 | None |
+| `serializer_retrieve_class` | BaseModel | 详情响应序列化器 | None |
 | `lookup_field` | str | 资源查找字段 | "pk" |
 | `ordering` | list | 默认排序字段 | None |
 | `pagination_class` | class | 分页类 | None |
 | `filter_class` | class | 过滤类 | None |
-| `permissions` | list | 权限依赖列表 | [] |
+| `permissions` | list | FastAPI 依赖列表，通常用于认证 | [] |
+| `permission_classes` | list | 业务权限类，支持对象权限 | [] |
+| `select_related` | list | 外键关联查询优化 | [] |
+| `prefetch_related` | list | 反向关系/M2M 预取优化 | [] |
+| `atomic_actions` | bool | 写操作是否自动包裹事务 | True |
 | `loop_uuid_field` | str | UUID字段名 | None |
 
 ## 🔧 高级配置
 
+### 自定义 Action
+
+```python
+from fastapi import Request
+from fast_generic_api.core.response import Response
+from fast_generic_api.decorator import action
+
+class UserViewSet(...):
+    @action(detail=True, methods=["POST"], url_path="toggle-active")
+    async def toggle_active(self, request: Request) -> Response:
+        user = await self.get_object()
+        user.is_active = not user.is_active
+        await self.backend.save(user)
+        return Response(self.get_serializer(user))
+```
+
+- `detail=True` 注册为 `/{prefix}/{lookup_field}/toggle-active/`
+- `detail=False` 注册为 `/{prefix}/toggle-active/`
+- 如果 action 方法声明 `data: SomePydanticModel`，FastAPI 会自动生成请求体和 OpenAPI 文档
+
 ### 自定义过滤
 
 ```python
-from fast_auto_framework.core.filter import FilterSet
+from fast_generic_api.core.filter import FilterSet
 from models import User
 
 class UserFilter(FilterSet):
     model = User
-    exclude_fields = {"offset", "limit"}
+    exclude_fields = {"offset", "limit", "page", "page_size"}
+
+    # 声明式过滤字段会自动进入 OpenAPI 查询参数
+    username__icontains: str | None = None
+    is_active: bool | None = None
     
-    # 自定义过滤方法
+    # 旧版自定义回调仍兼容
     filters = {
-        "username": lambda qs, field, value: qs.filter(username__icontains=value),
         "email": lambda qs, field, value: qs.filter(email__icontains=value),
     }
 
@@ -275,10 +322,50 @@ class UserViewSet(...):
     filter_class = UserFilter
 ```
 
+### ModelSerializer 自动生成
+
+```python
+from fast_generic_api.core.serializers import ModelSerializer
+from models import User
+
+class UserSerializer(ModelSerializer):
+    class Meta:
+        model = User
+        fields = ("id", "username", "email", "is_active")
+        read_only_fields = ("id",)
+```
+
+`ModelSerializer` 会从 Tortoise 模型 `_meta.fields_map` 自动推导 Pydantic 字段，并提供 `create()` / `update(instance)` 帮助方法。复杂嵌套关系建议先作为只读输出处理，写入逻辑可在 `perform_create` / `perform_update` 中显式实现。
+
+### 字段级序列化控制
+
+```python
+from fast_generic_api.core.schemas import AutoSchemas
+
+class UserListSerializer(AutoSchemas):
+    id: int
+    username: str
+    email: str
+    is_active: bool
+
+    class Meta:
+        fields = ("id", "username")
+```
+
+`AutoSchemas` 支持 `Meta.fields` 白名单和 `Meta.exclude` 黑名单，用于按 action 输出不同字段。常见配置：
+
+```python
+class UserViewSet(...):
+    serializer_class = UserDetailSerializer
+    serializer_list_class = UserListSerializer
+    serializer_create_class = UserCreateSerializer
+    serializer_update_class = UserUpdateSerializer
+```
+
 ### 自定义分页
 
 ```python
-from fast_auto_framework.core.pagination import LimitOffsetPagination
+from fast_generic_api.core.pagination import LimitOffsetPagination
 
 class CustomPagination(LimitOffsetPagination):
     default_limit = 20
@@ -294,7 +381,8 @@ class UserViewSet(...):
 ```python
 from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
-from fast_auto_framework.core.exceptions import HTTPPermissionException
+from fast_generic_api.core.exceptions import HTTPPermissionException
+from fast_generic_api.core.permissions import BasePermission
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
@@ -304,10 +392,100 @@ async def get_current_active_user(token: str = Depends(oauth2_scheme)):
         raise HTTPPermissionException
     return user
 
+class IsOwner(BasePermission):
+    async def has_object_permission(self, request, obj) -> bool:
+        return obj.owner_id == request.user.id
+
 # 在视图中使用
 class UserViewSet(...):
-    permissions = [Depends(get_current_active_user)]
+    permissions = [Depends(get_current_active_user)]  # FastAPI 认证依赖
+    permission_classes = [IsOwner]                   # 业务/对象权限
 ```
+
+### 事务说明
+
+写操作默认包裹在 `backend.in_transaction()` 中，包括：
+
+- `create` / `update` / `partial_update` / `destroy`
+- `create_many` / `update_many` / `destroy_many`
+
+批量操作中任意一条失败会整体回滚。若你的 action 或业务代码自行管理事务，可在 ViewSet 上关闭自动事务：
+
+```python
+class UserViewSet(...):
+    atomic_actions = False
+```
+
+### 多 ORM Backend（Tortoise / SQLAlchemy）
+
+ViewSet 通过 `backend` 访问数据库，默认是 Tortoise：
+
+```python
+from fast_generic_api.backends import tortoise_backend
+
+class ItemViewSet(...):
+    backend = tortoise_backend  # 默认值，可省略
+```
+
+切换到 SQLAlchemy 2.x async：
+
+```bash
+pip install "fast_generic_api[sqlalchemy]"
+# 或
+pip install "sqlalchemy[asyncio]>=2.0" aiosqlite
+```
+
+```python
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from fast_generic_api.backends import SQLAlchemyBackend
+from fast_generic_api.generics import CustomViewSet
+
+engine = create_async_engine("sqlite+aiosqlite:///./app.db")
+SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
+
+async def sa_backend():
+    # 简化示例：生产中建议在依赖里管理 session 生命周期
+    session = SessionLocal()
+    return SQLAlchemyBackend(session)
+
+class ItemViewSet(CustomViewSet):
+    queryset = SAItem
+    lookup_field = "id"
+    backend_provider = sa_backend  # 每请求注入 backend
+```
+
+- 测试示例：`tests/test_sqlalchemy_backend.py`
+- FilterSet 优先走 `backend.filter`，旧版 Tortoise `qs.filter(...)` 回调仍兼容
+- OpenAPI 默认使用统一信封 `Envelope[T]`（`envelope_response=False` 可关）
+- 删除：模型有 `is_deleted` 则软删，否则物理删除
+
+### 版本与路线
+
+- 当前版本：**0.2.0**
+- 1.0 规划见 [ROADMAP.md](ROADMAP.md)
+
+推荐在多表写入时重写 `perform_create` / `perform_update`，而不是绕过 mixin：
+
+```python
+class ComboServiceViewSet(...):
+    async def perform_create(self, data):
+        payload = self.serialize_input_data(data)
+        items = payload.pop("items", [])
+        combo = await self.backend.create(self.queryset, **payload)
+        for item in items:
+            await ComboItem.create(combo=combo, **item)
+        return combo
+```
+
+### 迁移指南
+
+从旧版升级时需要注意：
+
+1. CRUD 路由已采用 RESTful 形式：`GET/POST /{prefix}/`、`GET/PUT/PATCH/DELETE /{prefix}/{lookup}/`。
+2. 推荐把列表和详情输出拆成 `serializer_list_class` / `serializer_retrieve_class`，减少列表接口字段量。
+3. 推荐把旧版 `filters = {...}` 逐步迁移为声明式字段（旧写法仍兼容）。
+4. 写操作默认开启事务；若旧代码中已经手动包裹事务，检查是否需要设置 `atomic_actions = False`。
+5. 需要跨 ORM 扩展时，实现 `BaseBackend` 并在 ViewSet 上替换 `backend`。
 
 ## 📦 依赖
 

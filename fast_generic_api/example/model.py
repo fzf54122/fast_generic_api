@@ -5,6 +5,7 @@
 # @Software: PyCharm
 from tortoise import fields, models
 
+
 class Item(models.Model):
     id = fields.IntField(pk=True)
     # uuid = fields.UUIDField(unique=True, index=True)
